@@ -1,0 +1,157 @@
+_base_ = [
+    '../../_base_/models/vit-large-p16.py',
+    '../../_base_/datasets/wheat_target_bs8_448.py',
+    '../../_base_/schedules/vit_large.py',
+    '../../_base_/default_runtime.py'
+]
+
+#####################################
+# model setting
+
+num_classes = 2
+
+model = dict(
+    backbone=dict(
+        frozen_stages=23,   # not freeze backbone  -1   # freeze backbone 23
+        init_cfg=[dict(
+            type='Pretrained',
+            checkpoint='/extra_disk/PDDG/pretrain_checkpoint/checkpoints/vit-large-p16_in21k-pre-3rdparty_ft-64xb64_in1k-384_20210928-b20ba619.pth',
+            prefix='backbone',
+        )]),
+    head=dict(
+        num_classes=num_classes,
+    )
+)
+
+
+#####################################
+# dataset setting
+
+input_size = 224
+# src_data_root = '/extra_disk/Benchmarks/Apple_Src'
+trg_data_root = '/extra_disk/Benchmarks/Wheat_Trg'
+metainfo = {
+    'classes': ['Healthy', 'Rust'],
+}
+
+data_preprocessor = dict(
+    mean=[127.5, 127.5, 127.5],
+    std=[127.5, 127.5, 127.5],
+    # convert image from BGR to RGB
+    to_rgb=True,
+)
+
+
+train_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(type='Resize', scale=input_size),
+    dict(
+        type='RandomApply',
+        transforms=[
+            dict(
+                type='ColorJitter',
+                brightness=0.1,
+                contrast=0.1,
+                saturation=0.1,
+                hue=0.1)
+        ],
+        prob=0.8
+    ),
+    dict(type='RandomFlip', prob=0.5, direction='horizontal'),
+    dict(type='PackInputs'),
+]
+
+test_pipeline = [
+    dict(type='LoadImageFromFile'),
+    dict(type='Resize', scale=input_size),
+    dict(type='PackInputs'),
+]
+
+
+train_dataloader = dict(
+    batch_size=128,
+    num_workers=2,
+    dataset=dict(
+        type='Wheat',
+        data_root=trg_data_root,
+        metainfo=metainfo,
+        # data_prefix='train',
+        pipeline=train_pipeline),
+    sampler=dict(type='DefaultSampler', shuffle=True),
+)
+
+val_dataloader = dict(
+    batch_size=1,
+    num_workers=1,
+    dataset=dict(
+        type='Wheat',
+        data_root=trg_data_root,
+        metainfo=metainfo,
+        # data_prefix='val',
+        pipeline=test_pipeline),
+    sampler=dict(type='DefaultSampler', shuffle=False),
+)
+val_evaluator = [
+    dict(type='Accuracy'),
+    dict(type='SingleLabelMetric', items=['precision', 'recall', 'f1-score'])
+]
+
+test_dataloader = val_dataloader
+test_evaluator = val_evaluator
+
+#####################################
+# optimizer
+
+max_epoch = 200
+warm_up_epoch = 5
+
+# optimizer
+optim_wrapper = dict(clip_grad=dict(max_norm=1.0))
+# optim_wrapper = dict(
+#     optimizer=dict(type='SGD', lr=0.045, momentum=0.9, weight_decay=0.00004)
+#     # optimizer=dict(type='Adam', lr=0.001)
+# )
+
+# learning policy
+# param_scheduler = [
+#     dict(
+#         type='LinearLR',
+#         start_factor=1e-4,
+#         by_epoch=True,
+#         begin=0,
+#         end=warm_up_epoch,
+#         convert_to_iter_based=True),
+#     dict(
+#         type='CosineAnnealingLR',
+#         T_max=max_epoch - warm_up_epoch,
+#         by_epoch=True,
+#         begin=warm_up_epoch,
+#         end=max_epoch,
+#         eta_min=1e-6,
+#         convert_to_iter_based=True)
+# ]
+
+# train, val, test setting
+train_cfg = dict(by_epoch=True, max_epochs=max_epoch, val_interval=5)
+val_cfg = dict()
+test_cfg = dict()
+
+# NOTE: `auto_scale_lr` is for automatically scaling LR,
+# based on the actual training batch size.
+# auto_scale_lr = dict(base_batch_size=256)
+
+#####################################
+# logger
+
+# configure default hooks
+default_hooks = dict(
+    logger=dict(type='LoggerHook', interval=100),
+    checkpoint=dict(type='CheckpointHook', interval=5, max_keep_ckpts=1, save_best='auto'),
+)
+
+visualizer = dict(
+    type='UniversalVisualizer',
+    vis_backends=[dict(type='LocalVisBackend'), dict(type='TensorboardVisBackend')],
+)
+
+find_unused_parameters = True
