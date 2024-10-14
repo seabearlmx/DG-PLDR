@@ -14,9 +14,9 @@ git clone https://github.com/seabearlmx/DG-PLDR.git
 cd DG-PLDR
 ```
 Install following packages.
-```
+
 Refer to [mmpretrain](https://github.com/open-mmlab/mmpretrain)
-```
+
 ### How to Run DG-PLDR
 1. Download datasets of each benchmark. Please send email to seabearlmx@gmail.com to obtain datasets. Note that please use organization email.
 
@@ -39,5 +39,5 @@ Refer to [mmpretrain](https://github.com/open-mmlab/mmpretrain)
 6. You can modify "frozen_stages" in the config files to adjust the fine-tuning strategy.
 
 ## Acknowledgments
-Our pytorch implementation is heavily derived from [mmpretrain]([https://github.com/shachoi/RobustNet](https://github.com/open-mmlab/mmpretrain)).
+Our pytorch implementation is heavily derived from [mmpretrain](https://github.com/open-mmlab/mmpretrain).
 Thanks to the mmpretrain implementations.
